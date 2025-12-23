@@ -7,57 +7,49 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# Temporary storage in RAM
-task_queue = []
-
-@app.route('/')
-def index():
-    return jsonify({
-        "status": "online",
-        "message": "Free Fire Like API"
-    })
-
+# Ini yang Hafiz nak: Endpoint /api/like
 @app.route('/api/like', methods=['GET'])
-def add_to_queue():
+def simple_like():
+    # Ambil UID dari link (?uid=xxxx)
     uid = request.args.get('uid')
-    key = request.args.get('key')
-    region = request.args.get('server', 'SINGAPORE').upper()
-
-    # Security Key Check
-    if key != "HAFIZ77":
-        return jsonify({
-            "success": False,
-            "message": "Invalid API Key"
-        }), 403
-
+    
     if not uid:
         return jsonify({
-            "success": False,
-            "message": "UID parameter is missing"
-        }), 400 
+            "status": "error",
+            "message": "Mana UID? Sila letak ?uid=NOMBOR_ID kat hujung link"
+        }), 400
 
-    # Add task to queue
-    task = {"uid": uid, "server": region}
-    task_queue.append(task)
+    # Maklumat Header (Kunci akses Polar Bear)
+    target_url = "https://clientbp.ggpolarbear.com/LikeProfile"
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInN2ciI6IjEiLCJ0eXAiOiJKV1QifQ.eyJhY2NvdW50X2lkIjo2MjM4NjIxMTQ0LCJuaWNrbmFtZSI6IkRFVuOFpEhBRklaIiwibm90aV9yZWdpb24iOiJTRyIsImxvY2tfcmVnaW9uIjoiU0ciLCJleHRlcm5hbF9pZCI6IjM3Yzc2MmViNzFlYzEyMWYxODhhNWZlOGIwZTgyZWQ5IiwiZXh0ZXJuYWxfdHlwZSI6MywicGxhdF9pZCI6MSwiY2xpZW50X3ZlcnNpb24iOiIxLjExOC4xNiIsImVtdWxhdG9yX3Njb3JlIjoxMDAsImlzX2VtdWxhdG9yIjp0cnVlLCJjb3VudHJ5X2NvZGUiOiJNWSIsImV4dGVybmFsX3VpZCI6MTIxMjUzNTk3MjMzNzAyLCJyZWdfYXZhdGFyIjoxMDIwMDAwMDQsInNvdXJjZSI6MCwibG9ja19yZWdpb25fdGltZSI6MTY1MjAwOTQwNCwiY2xpZW50X3R5cGUiOjIsInNpZ25hdHVyZV9tZDUiOiI3NDI4YjI1M2RlZmMxNjQwMThjNjA0YTFlYmJmZWJkZiIsInVzaW5nX3ZlcnNpb24iOjEsInJlbGVhc2VfY2hhbm5lbCI6ImFuZHJvaWQiLCJyZWxlYXNlX3ZlcnNpb24iOiJPQjUxIiwiZXhwIjoxNzY2NTQ2MDU5fQ.SmUu4caMkQFixBHZvPFnD4j2pS35k1q9HXWZ-GenpkU",
+        "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 7.1.1; ONEPLUS A5000 Build/NMF26X)"
+    }
 
-    return jsonify({
-        "success": True,
-        "message": "UID added to queue",
-        "data": {
-            "uid": uid,
-            "server": region,
-            "queue_size": len(task_queue)
-        }
-    })
+    # Payload (PENTING: Ini kod rahsia yang kita bincang tadi)
+    raw_payload = b'\xc9\xb4\xd9Q\x18?\xb4\xed\xcb;\xee\xc7\xe6\x06\xde\xc2'
 
-@app.route('/get_task', methods=['GET'])
-def get_task():
-    if task_queue:
-        return jsonify(task_queue.pop(0))
-    return jsonify({"uid": None})
+    try:
+        # Kita hantar 1 request (atau buat loop kalau nak banyak)
+        response = requests.post(target_url, headers=headers, data=raw_payload, timeout=5)
+        
+        if response.status_code == 200:
+            return jsonify({
+                "status": "success",
+                "uid": uid,
+                "message": "Like berjaya dihantar!",
+                "developer": "Hafiz"
+            })
+        else:
+            return jsonify({
+                "status": "failed",
+                "reason": "Token Expired atau Server Down"
+            }), 500
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-
     app.run(host='0.0.0.0', port=port)
-
